@@ -1,0 +1,7 @@
+tokens.json
+*.pyc
+*.log
+log/*
+tmp/*
+.idea/*
+.idea
