@@ -1,12 +1,10 @@
 
 import os
-from datetime import datetime
-from shutil import copyfile
-from util import csv_2_xlsx, make_dir
 from config import config
 
 from parsers._branding_themes_parser import  BrandingThemesParser
 from parsers._items_parser import ItemsParser
+from parsers._contacts_parser import ContactsParser
 from parsers._invoices_parser import InvoicesParser
 from parsers._invoice_line_items_parser import InvoiceLineItemsParser
 
@@ -23,6 +21,9 @@ class Parser:
       parser.parse()
     elif  type == "items":
       parser = ItemsParser(self.log, self.data_dir)
+      parser.parse()
+    elif  type == "contacts":
+      parser = ContactsParser(self.log, self.data_dir)
       parser.parse()
     elif  type == "invoices":
       parser = InvoicesParser(self.log, self.data_dir)

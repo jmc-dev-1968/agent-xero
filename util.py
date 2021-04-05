@@ -37,6 +37,11 @@ def clean_date(unix_date_str):
   return  date.strftime("%Y-%m-%d %H:%M:%S")
 
 
+def zero_to_empty(str):
+  clean = "" if str.strip()=="0" else str
+  return clean
+
+
 def csv_2_xlsx(csv_file, xlsx_file="", formats=[]):
 
   if xlsx_file=="":
