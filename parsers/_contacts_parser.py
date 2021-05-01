@@ -37,13 +37,13 @@ class ContactsParser():
     #zero_created_datetime = clean_date(data['DateTimeUTC'])
 
     col_header = """
-    ContactID,AccountNumber,ContactStatus,Name,EmailAddress,SkypeUserName,Segment1,Segment2,Segment3,BankAccountDetails,TaxNumber,
+    ContactID,AccountNumber,ContactStatus,Name,FirstName,LastName,EmailAddress,SkypeUserName,Segment1,Segment2,Segment3,BankAccountDetails,TaxNumber,
     Street_City,Street_Region,Street_PostalCode,Street_Country,
     POBOX_AddressLine1,POBOX_AddressLine2,POBOX_AddressLine3,POBOX_AddressLine4,POBOX_City,POBOX_Region,POBOX_PostalCode,POBOX_Country,POBOX_AttentionTo,
-    DDI_PhoneNumber,DDI_PhoneAreaCode,DDI_PhoneCountryCode,
     DEFAULT_PhoneNumber,DEFAULT_PhoneAreaCode,DEFAULT_PhoneCountryCode,
-    FAX_PhoneNumber,FAX_PhoneAreaCode,FAX_PhoneCountryCode,
     MOBILE_PhoneNumber,MOBILE_PhoneAreaCode,MOBILE_PhoneCountryCode,
+    FAX_PhoneNumber,FAX_PhoneAreaCode,FAX_PhoneCountryCode,
+    DDI_PhoneNumber,DDI_PhoneAreaCode,DDI_PhoneCountryCode,
     UpdatedDateUTC,IsSupplier,IsCustomer,
     ProcessingNotes,URL 
     """
@@ -62,6 +62,8 @@ class ContactsParser():
       account_number = contact['AccountNumber'] if 'AccountNumber' in contact else ''
       contact_status = contact['ContactStatus'] if 'ContactStatus' in contact else ''
       name = contact['Name'] if 'Name' in contact else ''
+      first_name = contact['FirstName'] if 'FirstName' in contact else ''
+      last_name = contact['LastName'] if 'LastName' in contact else ''
       email_address = contact['EmailAddress'] if 'EmailAddress' in contact else ''
 
       # parse segments
@@ -144,14 +146,14 @@ class ContactsParser():
       url = xero_url + contact_id
 
       columns = [
-        contact_id, account_number, contact_status, name, email_address, skype_user_name, segment_1, segment_2, segment_3, bank_account_details,tax_number,
+        contact_id, account_number, contact_status, name, first_name, last_name, email_address, skype_user_name, segment_1, segment_2, segment_3, bank_account_details,tax_number,
         street_city, street_region, street_postalcode, street_country,
         pobox_addressline1, pobox_addressline2, pobox_address_line3, pobox_address_line4, pobox_city, pobox_region,
         pobox_postal_code, pobox_country, pobox_attention_to,
-        ddi_phone_number, ddi_phone_area_code, ddi_phone_country_code,
         default_phone_number, default_phone_area_code, default_phone_country_code,
-        fax_phone_number, fax_phone_area_code, fax_phone_country_code,
         mobile_phone_number, mobile_phone_area_code, mobile_phone_country_code,
+        fax_phone_number, fax_phone_area_code, fax_phone_country_code,
+        ddi_phone_number, ddi_phone_area_code, ddi_phone_country_code,
         updated_date_utc, is_supplier, is_customer,
         processing_notes, url
       ]
@@ -165,7 +167,7 @@ class ContactsParser():
     self.log.write("INFO [{}] CSV file created {} ({:,} records)".format(data_type, csv_file_name, i))
 
     formats = [
-      '', '', '', '', '', '', '', '', '', '', '',
+      '', '', '', '', '', '', '', '', '', '', '', '', '',
       '', '', '', '',
       '', '', '', '', '', '',
       '', '', '',
