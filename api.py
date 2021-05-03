@@ -21,7 +21,7 @@ class API:
   
   def fetch_data(self, data_type, uuid=""):
   
-    naked_data_types = ['items', 'invoices', 'branding-themes']
+    naked_data_types = ['items', 'invoices', 'branding-themes', 'contacts', 'accounts']
     guid_data_types = ['invoice']
   
     if data_type not in naked_data_types + guid_data_types:
@@ -44,6 +44,10 @@ class API:
       url = xero_endpoint + '/Invoices'
     elif data_type == "branding-themes":
       url = xero_endpoint + '/BrandingThemes'
+    elif data_type == "contacts":
+      url = xero_endpoint + '/Contacts/?includeArchived=true'
+    elif data_type == "accounts":
+      url = xero_endpoint + '/Accounts'
     elif data_type == "invoice":
       url = xero_endpoint + '/Invoices/{uuid}'.format(uuid=uuid)
       proc_dir = 'processing/invoices'

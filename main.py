@@ -13,6 +13,7 @@ def prelim():
   root = config["data-dir"]
 
   util.make_dir(root + '/archive/items')
+  util.make_dir(root + '/archive/contacts')
   util.make_dir(root + '/archive/invoices')
   util.make_dir(root + '/archive/invoice-headers')
   util.make_dir(root + '/archive/invoice-line-items')
@@ -29,6 +30,12 @@ def refresh(log):
   api.refresh_token()
 
 
+def test(log):
+  tokens = Tokens()
+  api = API(tokens, log)
+  api.test_call()
+
+
 def process_single(log, do_fetch=True, do_parse=True):
   root = config["data-dir"]
 
@@ -40,6 +47,8 @@ def process_single(log, do_fetch=True, do_parse=True):
       return False
     if not api.fetch_data("branding-themes"):
       return False
+    if not api.fetch_data("contacts"):
+      return False
     if not api.fetch_data("invoices"):
       return False
 
@@ -48,6 +57,7 @@ def process_single(log, do_fetch=True, do_parse=True):
     parser = Parser(log)
     parser.parse('branding-themes')
     parser.parse('items')
+    parser.parse('contacts')
     parser.parse('invoices')
 
   return True
@@ -85,15 +95,26 @@ def process_multiple(log, do_fetch=True, do_parse=True, do_merge=True):
 if __name__ == "__main__":
   task = sys.argv[1]
   log = Log(echo=False)
-  prelim()
-  if task == 'process_data':
-    process_single(log, do_fetch=True, do_parse=True)
-    process_multiple(log, do_fetch=True, do_parse=True, do_merge=True)
-  elif task == 'refresh_token':
+
+  if task == 'test':
+    test(log)
+    log.close()
+    exit()
+
+  if task == 'refresh_token':
     log.echo=True
     refresh(log)
     log.echo=False
+    log.close()
+    exit()
+
+  prelim()
+
+  if task == 'process_data':
+    process_single(log, do_fetch=True, do_parse=True)
+    process_multiple(log, do_fetch=True, do_parse=True, do_merge=True)
   else:
     pass
+
   log.close()
 
