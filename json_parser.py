@@ -7,6 +7,7 @@ from parsers._items_parser import ItemsParser
 from parsers._contacts_parser import ContactsParser
 from parsers._invoices_parser import InvoicesParser
 from parsers._invoice_line_items_parser import InvoiceLineItemsParser
+from parsers._credit_note_line_items_parser import CreditNoteLineItemsParser
 
 
 class Parser:
@@ -15,7 +16,7 @@ class Parser:
     self.log = log
     self.data_dir = config["data-dir"] if config["data-dir"] != "" else os.getcwd()
 
-  def parse(self, type):
+  def parse(self, type, is_init=False):
     if  type == "branding-themes":
       parser = BrandingThemesParser(self.log, self.data_dir)
       parser.parse()
@@ -30,4 +31,7 @@ class Parser:
       parser.parse()
     elif  type == "invoices-line-items":
       parser = InvoiceLineItemsParser(self.log, self.data_dir)
-      parser.parse()
+      parser.parse(is_init)
+    elif  type == "credit-note-line-items":
+      parser = CreditNoteLineItemsParser(self.log, self.data_dir)
+      parser.parse(is_init)

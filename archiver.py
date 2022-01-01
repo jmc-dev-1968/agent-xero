@@ -12,23 +12,40 @@ class Archiver:
     self.data_dir = config["data-dir"] if config["data-dir"] != "" else os.getcwd()
 
 
-  def archive(self, data_type, file_names):
-    ds = datetime.now().strftime("%Y-%m-%d")
-    ts = datetime.now().strftime("%Y-%m-%dT%H%M%S")
-    ark_dir = "{}/archive/{}/{}".format(self.data_dir, data_type, ds)
-    make_dir(ark_dir)
+  def archive(self, data_type, file_names, is_init=False):
     files = [file_names] if type(file_names) is not list else file_names
-    for file in files:
-      _, naked_file_name, stem, ext = parse_file_name(file)
-      ark_file_name = "{}/{}--{}.{}".format(ark_dir, stem, ts, ext)
-      copyfile(file, ark_file_name)
-      self.log.write("INFO [{}] {} archived to {}".format(data_type, naked_file_name, ark_file_name))
+    if is_init:
+      ark_dir = "{}/archive/{}/init".format(self.data_dir, data_type)
+      make_dir(ark_dir)
+      for file in files:
+        _, naked_file_name, stem, ext = parse_file_name(file)
+        ark_file_name = "{}/{}".format(ark_dir, naked_file_name)
+        copyfile(file, ark_file_name)
+      self.log.write("INFO [{}] files archived to {}".format(data_type, ark_dir))
+    else:
+      ds = datetime.now().strftime("%Y-%m-%d")
+      ts = datetime.now().strftime("%Y-%m-%dT%H%M%S")
+      ark_dir = "{}/archive/{}/{}".format(self.data_dir, data_type, ds)
+      make_dir(ark_dir)
+      for file in files:
+        _, naked_file_name, stem, ext = parse_file_name(file)
+        ark_file_name = "{}/{}--{}.{}".format(ark_dir, stem, ts, ext)
+        copyfile(file, ark_file_name)
+        self.log.write("INFO [{}] {} archived to {}".format(data_type, naked_file_name, ark_file_name))
+
+
+  def simple_copy(self, src_file_name, dest_file_name):
+    if os.path.exists(dest_file_name):
+      os.remove(dest_file_name)
+    copyfile(src_file_name, dest_file_name)
+    self.log.write("INFO {} copied to {}".format(src_file_name, dest_file_name))
 
 
   def copy(self, data_type, file_name, copy_dest_dir, excelize=False, xlsx_formats=None):
     dirs = {
       "current": self.data_dir + "/current",
-      "master": self.data_dir + "/master"
+      "master": self.data_dir + "/master",
+      "processing": self.data_dir + "/processing"
     }
     _, naked_file_name, _, ext = parse_file_name(file_name)
     target_file_name = dirs[copy_dest_dir] + "/" + naked_file_name

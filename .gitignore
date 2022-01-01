@@ -8,4 +8,5 @@ tmp/*
 test.py
 xero-log.txt
 test.py
-
+test/
+init/

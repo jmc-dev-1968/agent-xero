@@ -6,6 +6,7 @@ import glob
 import csv
 from xlsxwriter.workbook import Workbook
 from config import config
+import shutil
 
 cwd = config["work-dir"] if config["work-dir"] != "" else os.getcwd()
 
@@ -16,15 +17,41 @@ def make_dir(dir, chmod='755'):
     print("directory {} created, permissions set to {}".format(dir, str(chmod)))
 
 
-def delete_files(dir, wildcard="*"):
+# delete subdirs under dir, but NOT the dir itself (if dir exists)
+def delete_subdirs(dir, dry_run=False):
+  if not os.path.exists(dir):
+    print("directory {} does not exist".format(dir))
+    return
+  subdirs = [f.path for f in os.scandir(dir) if f.is_dir()]
+  if dry_run:
+    for subdir in subdirs:
+      print(subdir)
+  else:
+    for subdir in subdirs:
+      try:
+        shutil.rmtree(subdir)
+        print("directory {} deleted".format(subdir))
+      except OSError as e:
+        print("error: {} : {}".format(subdir, e.strerror))
+
+
+# delete files under dir (if dir exists)
+def delete_files(dir, wildcard="*", dry_run=False):
+  if not os.path.exists(dir):
+    print("directory {} does not exist".format(dir))
+    return
   files = glob.glob('{}/{}'.format(dir, wildcard))
   if not files:
     return
-  i = 0
-  for f in files:
-    os.remove(f)
-    i  += 1
-  print("all {} files deleted from  directory {} ({} files)".format(wildcard, dir, str(i)))
+  if dry_run:
+    for file in files:
+      print(file)
+  else:
+    i = 0
+    for file in files:
+      os.remove(file)
+      i  += 1
+    print("directory {}, all {} files deleted ({} files)".format(dir, wildcard, str(i)))
 
 
 def clean_date(unix_date_str):

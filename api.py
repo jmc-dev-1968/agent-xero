@@ -90,7 +90,10 @@ class API:
       # check payload
       json_text = json.loads(response.text)
       # TODO : error handling for (a) general HTTP error and (b) expired token  (b is whats handled below)
-      if 'Detail' in json_text:
+      if 'ErrorNumber' in json_text:
+        self.log.write("ERROR api '{}' extraction failed : {}/{}".format(data_type, json_text["Type"], json_text["Message"]))
+        return False
+      elif 'Detail' in json_text:
         print(json_text)
         self.log.write("ERROR api {} extraction failed : {}/{}".format(data_type, json_text["Title"], json_text["Detail"]))
         success = self.refresh_token()
@@ -110,6 +113,155 @@ class API:
 
     # success
     return True
+
+
+  def fetch_data_init(self, data_type,  date_list=""):
+
+    # TODO : add partial batch success parm
+    total_page_count = 0
+    self.log.write("INFO BEGIN initilization extraction '{}' data from Xero ... ".format(data_type))
+
+    if date_list:
+      date_file = "./init/" + date_list
+      with open(date_file, 'r') as f:
+        dates = [line.rstrip("\n") for line in f.readlines()]
+      for date in dates:
+        success, page_count = self.fetch_data_by_page(data_type, date)
+        total_page_count = total_page_count + page_count
+        # if one date fails, entire batch fails
+        if not success:
+          self.log.write("INFO END initilization extraction '{}' data from Xero, aborted (errors encountered)")
+          return False
+    else:
+      success, total_page_count = self.fetch_data_by_page(data_type)
+      if not success:
+        self.log.write("INFO END initilization extraction '{}' data from Xero, aborted (errors encountered)")
+        return False
+
+    self.log.write("INFO END initilization extraction '{}' data from Xero ({} pages)".format(data_type, total_page_count))
+    return True
+
+
+  def fetch_data_by_page(
+          self
+          , data_type
+          , date=""
+          , updated_since_datetime=""
+          , hours_delta=0
+          , tz_offset=0):
+
+    milliseconds = 1010
+    seconds = 0.001 * milliseconds
+
+    # either mode (updated_since_datetime or hours_delta) needs to create the ISO datetime format for the HTTP header
+    cutoff_datetime_str = ""
+    if hours_delta != 0:
+      utc_now = datetime.utcnow()
+      cutoff_datetime = utc_now + timedelta(hours=int(tz_offset - hours_delta))
+      cutoff_datetime_str = cutoff_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+    elif updated_since_datetime:
+      cutoff_datetime_str = updated_since_datetime
+
+    data_types = ['invoices', 'credit-notes']
+
+    if data_type not in data_types:
+      print("first parameter must be in data types : ({})".format(",".join(data_types)))
+      exit()
+
+    retries_limit = config["api-call-retries"]
+    xero_endpoint = config["xero-endpoint"]
+
+    # NOTE date passed in as yyyy-mm-dd but URL wants yyyy,mm,dd
+    if data_type == "invoices":
+      if date:
+        base_url = xero_endpoint + '/Invoices?where=Date=DateTime({})&page='.format(date.replace("-", ","))
+      else:
+        base_url = xero_endpoint + '/Invoices?page='
+      json_collection = 'Invoices'
+      proc_dir = 'processing/invoices'
+    elif data_type == "credit-notes":
+      if date:
+        base_url = xero_endpoint + '/CreditNotes?where=Date=DateTime({})&page='.format(date.replace("-", ","))
+      else:
+        base_url = xero_endpoint + '/CreditNotes?&page='
+      proc_dir = 'processing/credit-notes'
+      json_collection = 'CreditNotes'
+    else:
+      pass
+
+    # append root dir
+    proc_dir = format("{}/{}").format(self.data_dir, proc_dir)
+
+    expiration_datetime = datetime.strptime(self.tokens.expiration_datetime, "%Y-%m-%d %H:%M:%S")
+    if datetime.now() > expiration_datetime:
+      self.refresh_token()
+    tenant_id = config['xero-tenant-id']
+
+    # start session
+    session = requests.session()
+
+    retries = 0
+    max_page_cnt = 200
+    last_page = False
+    page = 0
+    while not last_page:
+      # governor
+      time.sleep(seconds)
+      page += 1
+      if page > max_page_cnt:
+        self.log.write("ERROR api {} extraction reached maximum pages ({}), extraction aborted".format(data_type, max_page_cnt))
+        return False, max_page_cnt
+      # json file
+      if not date:
+        date = "all"
+      self.log.write("INFO extracting '{}' ({} page {}) data from Xero ... ".format(data_type, date, page))
+      file_name = "{}/{}--{}.{}.json".format(proc_dir, data_type, date, page)
+      url = base_url + str(page)
+      while 1 == 1:
+        # call api
+        headers = {
+          'content-type': 'application/json',
+          'accept': 'application/json',
+          'xero-tenant-id': tenant_id,
+          'authorization': 'Bearer ' + self.tokens.access_token
+        }
+
+        # date filter must be passed in header not in URL
+        if cutoff_datetime_str:
+          headers['If-Modified-Since'] = cutoff_datetime_str
+
+        response = requests.get(url, headers=headers)
+        # check payload
+        json_text = json.loads(response.text)
+        # hard error, no retry
+        if 'ErrorNumber' in json_text:
+          self.log.write("ERROR api '{}' extraction failed : {}/{}".format(data_type, json_text["Type"], json_text["Message"]))
+          return False, page
+        elif 'Detail' in json_text:
+          self.log.write("ERROR api '{}' extraction failed : {}/{}".format(data_type, json_text["Title"], json_text["Detail"]))
+          success = self.refresh_token()
+          if not success:
+            if retries == retries_limit:
+              self.log.write("INFO max retries ({}) reached, aborting '{}' extraction".format(retries_limit, data_type))
+              return False, page
+            else:
+              retries = retries + 1
+              self.log.write("INFO attempting retry #{}".format(retries))
+        # last page found so exit
+        elif json_collection in json_text and not json_text[json_collection]:
+          self.log.write("INFO api '{}' last page reached".format(data_type))
+          last_page = True
+          break
+        else:
+          cnt = len(json_text[json_collection])
+          file = codecs.open(file_name, "w", "utf-8")
+          file.write(response.text)
+          file.close()
+          self.log.write("INFO api '{}' extraction succeeded {} records saved to : {}".format(data_type, cnt, file_name))
+          break
+
+    # success (on success the last page is always empty, so adjust page count return parm)
+    return True, page - 1
 
 
   def test_call(self, do_refresh_token=False):
@@ -142,6 +294,14 @@ class API:
         response = requests.get(url, headers=headers)
         json_text = json.loads(response.text)
         pp.pprint(json_text)
+
+
+  def fetch_single_invoice_details(self, uuid):
+
+    success = self.fetch_data('invoice', uuid)
+    if not success:
+      return False, 0
+    return True, 1
 
 
   def fetch_invoice_details(self, cutoff=None, hours_delta=None, tz_offset=0, dry_run=False):
@@ -190,7 +350,8 @@ class API:
       time.sleep(seconds)
 
     return True, i
-  
+
+
   def refresh_token(self):
   
     url = "https://identity.xero.com/connect/token"
